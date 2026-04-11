@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixiv Viewer 設定</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Pixiv Viewer</h1>
+    
+    <section>
+      <h2>いいね時の自動保存</h2>
+      
+      <label class="checkbox-label">
+        <input type="checkbox" id="enableAutoSave">
+        <span>自動保存を有効にする</span>
+      </label>
+      
+      <div class="save-options">
+        <label class="checkbox-label">
+          <input type="checkbox" id="saveLocal">
+          <span>ローカルにダウンロード</span>
+        </label>
+        
+        <label class="checkbox-label">
+          <input type="checkbox" id="saveArchive">
+          <span>Internet Archiveに保存</span>
+        </label>
+      </div>
+    </section>
+    
+    <div class="status" id="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

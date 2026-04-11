@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Pixiv Viewer",
+  "version": "1.2",
+  "description": "Pixivイラストを専用ビューワーで表示・自動保存する拡張機能",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "scripting",
+    "declarativeNetRequest",
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "*://*.pixiv.net/*",
+    "*://*.pximg.net/*",
+    "*://web.archive.org/*"
+  ],
+  "icons": {
+    "16": "icons/icon.svg",
+    "32": "icons/icon.svg",
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg",
+    "128": "icons/icon.svg"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon.svg",
+      "32": "icons/icon.svg"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.pixiv.net/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["viewer.html", "viewer.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  }
+}
