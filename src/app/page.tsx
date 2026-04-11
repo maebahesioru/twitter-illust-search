@@ -4,6 +4,30 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { TweetResult } from "./api/search/route";
 
+function HlsVideo({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = videoRef.current!;
+    const proxied = `/api/video?url=${encodeURIComponent(src)}`;
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = proxied;
+    } else {
+      import("hls.js").then(({ default: Hls }) => {
+        if (!Hls.isSupported()) return;
+        const hls = new Hls();
+        hls.loadSource(proxied);
+        hls.attachMedia(video);
+        return () => hls.destroy();
+      });
+    }
+  }, [src]);
+  return (
+    <video ref={videoRef} controls autoPlay loop
+      style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", maxWidth: "90vw", maxHeight: "90vh" }}
+      onClick={e => e.stopPropagation()} />
+  );
+}
+
 function ViewerImage({ tweet, mediaIndex, onClose, onPrev, onNext, hasPrev, hasNext }: {
   tweet: TweetResult; mediaIndex: number; onClose: () => void;
   onPrev: () => void; onNext: () => void; hasPrev: boolean; hasNext: boolean;
@@ -13,7 +37,8 @@ function ViewerImage({ tweet, mediaIndex, onClose, onPrev, onNext, hasPrev, hasN
   const m = tweet.media[mediaIndex];
 
   useEffect(() => {
-    const img = imgRef.current!;
+    const img = imgRef.current;
+    if (!img) return;
     const s = state.current;
     s.x = 0; s.y = 0; s.scale = 1;
     img.style.transform = "translate(-50%, -50%) scale(1)";
@@ -90,9 +115,7 @@ function ViewerImage({ tweet, mediaIndex, onClose, onPrev, onNext, hasPrev, hasN
   return (
     <div className="absolute inset-0 overflow-hidden" onClick={onClose}>
       {m.type === "video" ? (
-        <video src={m.mediaUrl} controls autoPlay loop
-          style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", maxWidth: "90vw", maxHeight: "90vh" }}
-          onClick={e => e.stopPropagation()} />
+        <HlsVideo src={m.mediaUrl} />
       ) : (
         <img ref={imgRef} src={m.mediaUrl} alt={tweet.text} draggable={false}
           style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", cursor: "grab", userSelect: "none" }}
