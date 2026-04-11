@@ -136,22 +136,13 @@ export default function Home() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (selected) { history.back(); return; }
+        if (selected) { setSelected(null); return; }
         setPanic(v => !v);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [selected]);
-
-  useEffect(() => {
-    if (selected) history.pushState({ viewer: true }, "");
-  }, [selected]);
-  useEffect(() => {
-    const handler = (e: PopStateEvent) => { if (!e.state?.viewer) setSelected(null); };
-    window.addEventListener("popstate", handler);
-    return () => window.removeEventListener("popstate", handler);
-  }, []);
 
   const search = useCallback(async (q: string, mtype: "image" | "video" = "image") => {
     if (!q.trim()) return;
@@ -330,10 +321,10 @@ export default function Home() {
       </main>
 
       {selected && (
-        <div className="fixed inset-0 z-50 bg-black/90" onClick={() => history.back()}>
+        <div className="fixed inset-0 z-50 bg-black/90" onClick={() => setSelected(null)}>
           <ViewerImage
             tweet={selected.tweet} mediaIndex={selected.mediaIndex}
-            onClose={() => history.back()}
+            onClose={() => setSelected(null)}
             hasPrev={selectedFlatIndex > 0}
             hasNext={selectedFlatIndex < flatItems.length - 1}
             onPrev={() => selectedFlatIndex > 0 && setSelected(flatItems[selectedFlatIndex - 1])}
