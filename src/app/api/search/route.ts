@@ -59,16 +59,45 @@ export async function GET(req: NextRequest) {
           if (seenIds.has(e.id)) return;
           seenIds.add(e.id);
 
-          const d = await fetch(`https://api.fxtwitter.com/${e.screenName}/status/${e.id}`, {
+          const fetchTweet = (base: string) => fetch(`${base}/${e.screenName}/status/${e.id}`, {
             next: { revalidate: 3600 },
             signal: AbortSignal.timeout(5000),
-          }).then((r) => r.ok ? r.json() : null).catch(() => {
-            send("error", { id: e.id, screenName: e.screenName, text: e.displayTextBody?.replace(/\tSTART\t|\tEND\t/g, "") ?? "", url: e.url });
-            return null;
-          });
+          }).then((r) => r.ok ? r.json() : null).catch(() => null);
+
+          // fxtwitter → vxtwitter → Yahooデータのみ の順でフォールバック
+          let d = await fetchTweet("https://api.fxtwitter.com");
+          if (!d) d = await fetchTweet("https://api.vxtwitter.com");
+
           const tweet = d?.tweet;
           const author = tweet?.author;
-          if (!author || !isIllustrator(author, e.displayTextBody ?? "")) return;
+
+          // fxtwitter/vxtwitterが全滅した場合はYahooデータだけで判定・表示
+          if (!author) {
+            const yahooMedia: MediaItem[] = e.media
+              .filter((m: any) => m.type === "image" || m.type === "animatedGif" || m.type === "video")
+              .map((m: any) => ({
+                type: m.type as MediaItem["type"],
+                mediaUrl: m.item.mediaUrl,
+                thumbnailImageUrl: m.item.thumbnailImageUrl,
+                width: m.item.sizes?.viewer?.width ?? 0,
+                height: m.item.sizes?.viewer?.height ?? 0,
+              }));
+            if (yahooMedia.length === 0) return;
+            // Yahooデータのみの場合はisIllustrator判定をスキップして表示
+            send("result", {
+              id: e.id, url: e.url,
+              text: e.displayTextBody?.replace(/\tSTART\t|\tEND\t/g, "") ?? "",
+              screenName: e.screenName, name: e.name, profileImage: e.profileImage,
+              createdAt: e.createdAt,
+              likesCount: e.likesCount ?? 0, rtCount: e.rtCount ?? 0,
+              replyCount: e.replyCount ?? 0, qtCount: e.qtCount ?? 0, views: 0,
+              popularity: (e.likesCount ?? 0) + (e.rtCount ?? 0) * 3 + (e.replyCount ?? 0),
+              sensitive: e.possiblySensitive === true, isAI: false, media: yahooMedia,
+            } satisfies TweetResult);
+            return;
+          }
+
+          if (!isIllustrator(author, e.displayTextBody ?? "")) return;
 
           // fxtwitterの高画質メディアを優先、なければYahooのURLを使用
           const fxPhotos: MediaItem[] = (tweet?.media?.photos ?? []).map((p: any) => ({

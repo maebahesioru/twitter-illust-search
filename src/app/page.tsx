@@ -125,15 +125,19 @@ function ViewerImage({ tweet, mediaIndex, onClose, onPrev, onNext, hasPrev, hasN
       {hasPrev && <button onClick={e => { e.stopPropagation(); onPrev(); }} className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 flex items-center justify-center text-xl">‹</button>}
       {hasNext && <button onClick={e => { e.stopPropagation(); onNext(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 flex items-center justify-center text-xl">›</button>}
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 rounded-full px-4 py-2" onClick={e => e.stopPropagation()}>
-        <a href={`https://x.com/${tweet.screenName}`} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white text-sm whitespace-nowrap">@{tweet.screenName}</a>
-        <p className="text-gray-400 text-sm line-clamp-1 max-w-xs">{tweet.text}</p>
+      <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-4 py-2 flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+        <a href={`https://x.com/${tweet.screenName}`} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white text-xs whitespace-nowrap">@{tweet.screenName}</a>
+        <p className="text-gray-400 text-xs line-clamp-1 flex-1 min-w-0">{tweet.text}</p>
+        {tweet.views > 0 && <span className="text-gray-500 text-xs">👁 {tweet.views.toLocaleString()}</span>}
+        {tweet.likesCount > 0 && <span className="text-gray-500 text-xs">❤️ {tweet.likesCount.toLocaleString()}</span>}
         {tweet.media.length > 1 && <span className="text-gray-500 text-xs">{mediaIndex + 1}/{tweet.media.length}</span>}
-        <a href={tweet.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-sm whitespace-nowrap">ツイート →</a>
-        <button onClick={copyUrl} className="text-gray-400 hover:text-white text-sm whitespace-nowrap">🔗</button>
-        <button onClick={download} className="text-green-400 hover:text-green-300 text-sm whitespace-nowrap">↓ DL</button>
+        <a href={tweet.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 text-xs whitespace-nowrap">ツイート →</a>
+        <button onClick={copyUrl} className="text-gray-400 hover:text-white text-xs">🔗</button>
+        <button onClick={download} className="text-green-400 hover:text-green-300 text-xs">↓ DL</button>
       </div>
-      <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/80 rounded-full w-8 h-8 flex items-center justify-center text-lg">×</button>
+      <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 flex items-center justify-center text-lg">×</button>
+      <a href={tweet.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+        className="absolute top-4 right-16 text-white bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 flex items-center justify-center text-sm">𝕏</a>
     </div>
   );
 }
@@ -146,13 +150,14 @@ export default function Home() {
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [results, setResults] = useState<TweetResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showDonate, setShowDonate] = useState(true);
   const [error, setError] = useState("");
-  const [r18, setR18] = useState(false);
-  const [noAI, setNoAI] = useState(false);
+  const [r18, setR18] = useState<"all" | "only" | "exclude">("all");
+  const [noAI, setNoAI] = useState<"all" | "exclude" | "only">("all");
   const [panic, setPanic] = useState(false);
   const [mediaType, setMediaType] = useState<"image" | "video">("image");
   const [selected, setSelected] = useState<{ tweet: TweetResult; mediaIndex: number } | null>(null);
-  const [sortBy, setSortBy] = useState<"popularity" | "newest">("popularity");
+  const [sortBy, setSortBy] = useState<"popularity" | "newest" | "oldest">("popularity");
   const [failedTweets, setFailedTweets] = useState<{ id: string; screenName: string; text: string; url: string }[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -242,9 +247,9 @@ export default function Home() {
   };
 
   const filtered = useMemo(() => results
-    .filter(t => r18 ? t.sensitive : true)
-    .filter(t => noAI ? !t.isAI : true)
-    .sort((a, b) => sortBy === "popularity" ? b.popularity - a.popularity : b.createdAt - a.createdAt),
+    .filter(t => r18 === "only" ? t.sensitive : r18 === "exclude" ? !t.sensitive : true)
+    .filter(t => noAI === "exclude" ? !t.isAI : noAI === "only" ? t.isAI : true)
+    .sort((a, b) => sortBy === "popularity" ? b.popularity - a.popularity : sortBy === "newest" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt),
   [results, r18, noAI, sortBy]);
 
   // ビューワーの前後ナビ用フラットリスト
@@ -255,31 +260,61 @@ export default function Home() {
     <div className="min-h-screen bg-gray-950 text-white">
       {panic && <div className="fixed inset-0 z-[9999] bg-white" onClick={() => setPanic(false)} />}
 
+      {showDonate && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-xl p-6 max-w-sm w-full shadow-xl">
+            <h2 className="text-white font-bold text-lg mb-3">💝 寄付のお願い</h2>
+            <p className="text-gray-300 text-sm leading-relaxed mb-4">
+              このサービスは広告なし・完全無料で提供しています。課金や広告収入はなく、運営まわりの費用は寄付にすべて頼る形です。<br /><br />
+              サービスを続けるには <strong>OFUSE</strong> からのご支援が欠かせません。可能であればご協力をお願いします。
+            </p>
+            <div className="flex gap-3">
+              <a href="https://ofuse.me/maebahesioru" target="_blank" rel="noopener noreferrer"
+                className="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-sm font-medium py-2 rounded-lg text-center transition-colors">
+                OFUSEで支援する
+              </a>
+              <button onClick={() => setShowDonate(false)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm py-2 rounded-lg transition-colors">
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-10 bg-gray-900 border-b border-gray-800 px-4 py-3">
-        <div className="max-w-2xl mx-auto flex gap-2 items-center">
-          <button type="button" onClick={() => { abortRef.current?.abort(); setResults([]); setQuery(""); router.push("/"); }}
-            className="text-gray-400 hover:text-white text-lg px-2" title="トップに戻る">🎨</button>
-          <form onSubmit={handleSubmit} className="flex-1 flex gap-2">
-            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="イラストを検索... (例: 魔法少女, 風景画)"
-              className="flex-1 bg-gray-800 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500" />
-            <button type="submit" disabled={loading}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-2 rounded-lg text-sm font-medium transition-colors">
-              {loading ? "検索中..." : "検索"}
+        <div className="max-w-2xl mx-auto flex flex-col gap-2">
+          <div className="flex gap-2 items-center">
+            <button type="button" onClick={() => { abortRef.current?.abort(); setResults([]); setQuery(""); router.push("/"); }}
+              className="text-gray-400 hover:text-white text-lg px-1 shrink-0" title="トップに戻る">🎨</button>
+            <form onSubmit={handleSubmit} className="flex-1 flex gap-2">
+              <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="イラストを検索..."
+                className="flex-1 min-w-0 bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500" />
+              <button type="submit" disabled={loading}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0">
+                {loading ? "…" : "検索"}
+              </button>
+            </form>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setR18(v => v === "all" ? "only" : v === "only" ? "exclude" : "all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${r18 === "only" ? "bg-red-600 hover:bg-red-500" : r18 === "exclude" ? "bg-blue-600 hover:bg-blue-500" : "bg-gray-700 hover:bg-gray-600"}`}>
+              {r18 === "only" ? "R18のみ" : r18 === "exclude" ? "R18除外" : "R18"}
             </button>
-            <button type="button" onClick={() => setR18(v => !v)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${r18 ? "bg-red-600 hover:bg-red-500" : "bg-gray-700 hover:bg-gray-600"}`}>R18</button>
-            <button type="button" onClick={() => setNoAI(v => !v)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${noAI ? "bg-yellow-600 hover:bg-yellow-500" : "bg-gray-700 hover:bg-gray-600"}`}>AI除外</button>
+            <button type="button" onClick={() => setNoAI(v => v === "all" ? "exclude" : v === "exclude" ? "only" : "all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${noAI === "exclude" ? "bg-yellow-600 hover:bg-yellow-500" : noAI === "only" ? "bg-orange-600 hover:bg-orange-500" : "bg-gray-700 hover:bg-gray-600"}`}>
+              {noAI === "exclude" ? "AI除外" : noAI === "only" ? "AIのみ" : "AI"}
+            </button>
             <button type="button" onClick={() => { const next = mediaType === "image" ? "video" : "image"; setMediaType(next); if (query.trim()) search(query.trim(), next); }}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${mediaType === "video" ? "bg-purple-600 hover:bg-purple-500" : "bg-gray-700 hover:bg-gray-600"}`}>
-              {mediaType === "image" ? "🖼️" : "🎬"}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mediaType === "video" ? "bg-purple-600 hover:bg-purple-500" : "bg-gray-700 hover:bg-gray-600"}`}>
+              {mediaType === "image" ? "🖼️ 画像" : "🎬 動画"}
             </button>
-            <button type="button" onClick={() => setSortBy(v => v === "popularity" ? "newest" : "popularity")}
-              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-700 hover:bg-gray-600">
-              {sortBy === "popularity" ? "人気順" : "最新順"}
+            <button type="button" onClick={() => setSortBy(v => v === "popularity" ? "newest" : v === "newest" ? "oldest" : "popularity")}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-gray-700 hover:bg-gray-600">
+              {sortBy === "popularity" ? "人気順" : sortBy === "newest" ? "最新順" : "古い順"}
             </button>
-          </form>
+          </div>
         </div>
       </header>
 
@@ -297,27 +332,20 @@ export default function Home() {
         )}
 
         {filtered.length > 0 && (() => {
-          const cols = 5;
           const items = filtered.flatMap((tweet) =>
             tweet.media.map((m, j) => ({ tweet, m, j, key: `${tweet.id}-${j}` }))
           );
-          const columns: typeof items[] = Array.from({ length: cols }, () => []);
-          items.forEach((item, i) => columns[i % cols].push(item));
           return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {columns.map((col, ci) => (
-                <div key={ci} className="flex flex-col gap-2">
-                  {col.map(({ tweet, m, j, key }) => (
-                    <div key={key} className="group relative cursor-pointer overflow-hidden rounded-lg bg-gray-800"
-                      onClick={() => setSelected({ tweet, mediaIndex: j })}>
-                      <img src={m.thumbnailImageUrl} alt={tweet.text} width={m.width || 400} height={m.height || 300}
-                        className="w-full h-auto group-hover:opacity-80 transition-opacity" loading="lazy" />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 text-xs text-white">
-                        <span>❤️ {tweet.likesCount.toLocaleString()}</span>
-                        <span>🔁 {tweet.rtCount.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ))}
+            <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-2 space-y-2">
+              {items.map(({ tweet, m, j, key }) => (
+                <div key={key} className="group relative break-inside-avoid cursor-pointer overflow-hidden rounded-lg bg-gray-800"
+                  onClick={() => setSelected({ tweet, mediaIndex: j })}>
+                  <img src={m.thumbnailImageUrl} alt={tweet.text} width={m.width || 400} height={m.height || 300}
+                    className="w-full h-auto group-hover:opacity-80 transition-opacity" loading="lazy" />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 text-xs text-white">
+                    <span>❤️ {tweet.likesCount.toLocaleString()}</span>
+                    <span>🔁 {tweet.rtCount.toLocaleString()}</span>
+                  </div>
                 </div>
               ))}
             </div>
