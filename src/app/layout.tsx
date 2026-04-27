@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://illustsagasitter.hikamer.f5.si"),
   title: "イラスト検索 — Twitterのイラストをまとめて探す",
   description: "Yahooリアルタイム検索を使ってTwitter(X)上のイラストを高速検索。キャラクター名・作品名・画風などで絞り込めます。",
   keywords: ["イラスト", "Twitter", "X", "イラスト検索", "絵師", "ファンアート"],
@@ -12,11 +13,13 @@ export const metadata: Metadata = {
     description: "Twitter(X)のイラストをまとめて探せる検索サイト",
     type: "website",
     locale: "ja_JP",
+    images: ["/opengraph-image"],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "イラスト検索",
     description: "Twitter(X)のイラストをまとめて探せる検索サイト",
+    images: ["/opengraph-image"],
   },
   robots: { index: true, follow: true },
 };
