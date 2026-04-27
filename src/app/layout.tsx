@@ -2,6 +2,7 @@
 import { Suspense } from "react";
 import "./globals.css";
 
+// rebuild trigger
 export const metadata: Metadata = {
   metadataBase: new URL("https://illustsagasitter.hikamer.f5.si"),
   title: "イラスト検索 — Twitterのイラストをまとめて探す",
