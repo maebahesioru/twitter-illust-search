@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { isIllustrator } from "@/lib/filter";
 import { AI_SIGNALS } from "@/lib/words";
 
-const YAHOO_API = "https://search.yahoo.co.jp/realtime/api/v1/pagination";
+const YAHOO_BASE = (process.env.YAHOO_PROXY || "https://search.yahoo.co.jp/realtime/api/v1").replace(/\/$/, "");
+const YAHOO_API = `${YAHOO_BASE}/pagination`;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 export interface MediaItem {
