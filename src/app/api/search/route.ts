@@ -2,9 +2,24 @@ import { NextRequest } from "next/server";
 import { isIllustrator } from "@/lib/filter";
 import { AI_SIGNALS } from "@/lib/words";
 
-const YAHOO_BASE = (process.env.YAHOO_PROXY || "https://search.yahoo.co.jp/realtime/api/v1").replace(/\/$/, "");
-const YAHOO_API = `${YAHOO_BASE}/pagination`;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+const YAHOO_DIRECT_BASE = "https://search.yahoo.co.jp/realtime/api/v1";
+const YAHOO_PROXY_BASE = process.env.YAHOO_PROXY?.replace(/\/$/, "");
+
+const YAHOO_HEADERS = {
+  "User-Agent": UA,
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+  "Referer": "https://search.yahoo.co.jp/realtime/search",
+  "Origin": "https://search.yahoo.co.jp",
+};
+
+async function yahooFetch(pathAndQuery: string): Promise<Response> {
+  const directRes = await fetch(`${YAHOO_DIRECT_BASE}${pathAndQuery}`, { headers: YAHOO_HEADERS, next: { revalidate: 0 } });
+  if (directRes.ok || !YAHOO_PROXY_BASE) return directRes;
+  return fetch(`${YAHOO_PROXY_BASE}${pathAndQuery}`, { headers: YAHOO_HEADERS, next: { revalidate: 0 } });
+}
 
 export interface MediaItem {
   type: "image" | "animatedGif" | "video";
@@ -156,7 +171,7 @@ export async function GET(req: NextRequest) {
 
       // フェーズ1: 1ページ目で totalResultsAvailable を取得してから並列取得
       const firstParams = new URLSearchParams({ p: query, results: "40", mtype, start: "1" });
-      const firstRes = await fetch(`${YAHOO_API}?${firstParams}`, { headers, next: { revalidate: 0 } });
+      const firstRes = await yahooFetch(`/pagination?${firstParams}`);
       if (!firstRes.ok) {
         if (firstRes.status === 403 || firstRes.status === 429) send("blocked", {});
         send("done", {}); controller.close(); return;
@@ -171,7 +186,7 @@ export async function GET(req: NextRequest) {
         starts.map(async (start) => {
           if (seenIds.size >= total) return; // 早期終了
           const params = new URLSearchParams({ p: query, results: "40", mtype, start: String(start) });
-          const res = await fetch(`${YAHOO_API}?${params}`, { headers, next: { revalidate: 0 } }).catch(() => null);
+          const res = await yahooFetch(`/pagination?${params}`).catch(() => null);
           if (!res?.ok) return;
           const data = await res.json();
           pipeline.push(processEntries(data?.timeline?.entry ?? []));
@@ -183,7 +198,7 @@ export async function GET(req: NextRequest) {
       let cursor = allIds.at(-1) ?? null;
       while (cursor) {
         const params = new URLSearchParams({ p: query, results: "40", mtype, oldestTweetId: cursor });
-        const res = await fetch(`${YAHOO_API}?${params}`, { headers, next: { revalidate: 0 } });
+        const res = await yahooFetch(`/pagination?${params}`);
         if (!res.ok) break;
         const data = await res.json();
         const entries: any[] = data?.timeline?.entry ?? [];
